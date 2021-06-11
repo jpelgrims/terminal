@@ -36,7 +36,13 @@ export function createCell(
  * @param {Cell} otherCell
  * @returns {boolean} A boolean indicating if the two cells are equal (true) or not (false)
  */
-export function compareCells(cell: Cell, otherCell: Cell): boolean {
+export function compareCells(
+  cell: Cell | null,
+  otherCell: Cell | null,
+): boolean {
+  if (cell == null || otherCell == null) {
+    return false;
+  }
   return cell.char === otherCell.char &&
     compareColors(cell.fore, otherCell.fore) &&
     compareColors(cell.back, otherCell.back);

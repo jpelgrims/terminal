@@ -5,11 +5,17 @@ export interface Color {
 }
 
 const BLACK = { r: 0, g: 0, b: 0 } as const;
-const WHITE = { r: 0, g: 0, b: 0 } as const;
+const WHITE = { r: 255, g: 255, b: 255 } as const;
+const RED = { r: 255, g: 0, b: 0 } as const;
+const BLUE = { r: 0, g: 0, b: 255 } as const;
+const GREEN = { r: 0, g: 255, b: 0 } as const;
 
 export const Colors = {
   BLACK,
   WHITE,
+  RED,
+  BLUE,
+  GREEN,
 };
 
 /**
@@ -33,7 +39,10 @@ export function createColor(red: number, green: number, blue: number): Color {
  * @param {Color} otherColor
  * @returns {boolean} A boolean indicating if the two colors are equal (true) or not (false)
  */
-export function compareColors(color: Color, otherColor: Color): boolean {
+export function compareColors(
+  color: Color | null,
+  otherColor: Color | null,
+): boolean {
   if (color != null && otherColor != null) {
     return color.r === otherColor.r &&
       color.g === otherColor.g &&
