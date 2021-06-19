@@ -211,11 +211,11 @@ export class TerminalCanvas {
             x,
             Math.floor(y / 2),
             "▀",
-            { ...foreground },
-            { ...background },
+            foreground,
+            background,
           );
-          this.pixels[y][x] = { ...foreground };
-          this.pixels[y + 1][x] = { ...background };
+          this.pixels[y][x] = foreground;
+          this.pixels[y + 1][x] = background;
         }
       }
     }

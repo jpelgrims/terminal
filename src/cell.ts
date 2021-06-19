@@ -4,6 +4,7 @@ export interface Cell {
   char: string;
   fore: Color;
   back: Color;
+  modified: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export function createCell(
     char,
     fore: foregroundColor,
     back: backgroundColor,
+    modified: false
   };
 }
 

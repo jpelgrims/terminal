@@ -11,6 +11,10 @@ export interface TerminalSize {
   rows: number;
 }
 
+// TODO:
+// * Only process modified cells, and only if cell is modified do a compare
+//
+
 export class Terminal {
   private running = false;
   private rows: number;
@@ -18,9 +22,12 @@ export class Terminal {
   public inputStream: Deno.Reader;
   public outputStream: Deno.Writer;
   private drawQueue: DrawOperation[] = [];
+  private cells: Cell[][];
   private currentScreen: Cell[][];
   private stdoutBuffer = "";
   public eventQueue: TerminalEvent[] = [];
+
+  private renderMap: Map<Color, string> = new Map();
 
   /**
      * Creates the terminal object
@@ -37,8 +44,12 @@ export class Terminal {
     this.inputStream = inputStream;
 
     // Fill the canvas with nothing, required for the screen buffering system
-    this.currentScreen = [...Array(this.rows)].map(() =>
-      Array(this.columns).fill(null)
+    this.currentScreen = [...Array(this.rows)].map((x) =>
+      Array(this.columns).fill(createCell())
+    );
+
+    this.cells = [...Array(this.rows)].map((x) =>
+      Array(this.columns).fill(createCell())
     );
   }
 
@@ -149,7 +160,8 @@ export class Terminal {
     this.columns = columns;
 
     // Resize the current screen
-    resizeNestedArray(this.currentScreen, rows, columns, null);
+    resizeNestedArray(this.currentScreen, columns, rows, createCell());
+    resizeNestedArray(this.cells, columns, rows, createCell());
   }
 
   /**
@@ -201,17 +213,34 @@ export class Terminal {
   private renderCell(x: number, y: number, cell: Cell) {
     const ESC = EscapeSequence.ESC;
 
+    const moveCursor = `${ESC}[${y + 1};${x + 1}f`;
+
     let color = cell.fore;
-    const foregroundColor = `${ESC}[38;2;${color.r};${color.g};${color.b}m`;
+
+    let rgbString = this.renderMap.get(color);
+
+    if (rgbString == null) {
+      rgbString = `${color.r};${color.g};${color.b}`;
+      this.renderMap.set(color, rgbString);
+    }
+
+    const foregroundColor = `${ESC}[38;2;${rgbString}m`;
 
     color = cell.back;
-    const backgroundColor = `${ESC}[48;2;${color.r};${color.g};${color.b}m`;
 
-    const character = `${ESC}[${y + 1};${x + 1}H${cell.char}`;
+    rgbString = this.renderMap.get(color);
+
+    if (rgbString == null) {
+      rgbString = `${color.r};${color.g};${color.b}`;
+      this.renderMap.set(color, rgbString);
+    }
+
+    const backgroundColor = `${ESC}[48;2;${rgbString}m`;
+
     const reset = `${ESC}[0m`;
 
     this.stdoutBuffer +=
-      `${foregroundColor}${backgroundColor}${character}${reset}`;
+      `${foregroundColor}${backgroundColor}${moveCursor}${cell.char}${reset}`;
   }
 
   /**
@@ -233,8 +262,12 @@ export class Terminal {
     fore: Color = createColor(255, 255, 255),
     back: Color = createColor(0, 0, 0),
   ) {
-    const cell = createCell(char, { ...fore }, { ...back });
-    this.drawQueue.push(createDrawOp(column, row, cell));
+    // const cell = createCell(char, fore, back);
+    // this.drawQueue.push(createDrawOp(column, row, cell));
+    this.cells[row][column].back = back;
+    this.cells[row][column].fore = fore;
+    this.cells[row][column].char = char;
+    this.cells[row][column].modified = true;
   }
 
   /**
@@ -271,20 +304,40 @@ export class Terminal {
      * Process all queued drawing operations and outputs the result to the screen
      */
   async refresh() {
-    while (this.drawQueue.length > 0) {
-      const drawOp = this.drawQueue.shift();
+    // while (this.drawQueue.length > 0) {
+    //   const drawOp = this.drawQueue.shift();
 
-      if (drawOp == null) {
-        continue;
-      }
+    //   if (drawOp == null) {
+    //     continue;
+    //   }
 
-      const currentCell = this.currentScreen[drawOp.y][drawOp.x];
+    //   const currentCell = this.currentScreen[drawOp.y][drawOp.x];
 
-      if (!compareCells(drawOp.cell, currentCell)) {
-        this.renderCell(drawOp.x, drawOp.y, drawOp.cell);
-        this.currentScreen[drawOp.y][drawOp.x] = { ...drawOp.cell };
+    //   if (!compareCells(drawOp.cell, currentCell)) {
+    //     this.renderCell(drawOp.x, drawOp.y, drawOp.cell);
+    //     this.currentScreen[drawOp.y][drawOp.x] = drawOp.cell;
+    //   }
+    // }
+
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 0; x < this.columns; x++) {
+        const cell = this.cells[y][x];
+
+        if (cell.modified) {
+          const currentCell = this.currentScreen[y][x];
+
+          if (!compareCells(cell, currentCell)) {
+            this.renderCell(x, y, cell);
+            this.currentScreen[y][x].char = cell.char;
+            this.currentScreen[y][x].fore = cell.fore;
+            this.currentScreen[y][x].back = cell.back;
+            
+          }
+          cell.modified = false;
+        }
       }
     }
+
     await this.flush();
   }
 }

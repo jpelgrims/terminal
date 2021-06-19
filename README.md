@@ -1,8 +1,7 @@
-# Terminal
-
 [**Documentation**]() | [**Examples**]()
-
 ---
+
+# Terminal
 
 **Terminal is your one-stop shop for building graphical terminal applications.**
 
